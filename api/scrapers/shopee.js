@@ -56,6 +56,18 @@ async function scrapeShopee(keyword, maxResults = 20, basePrice = 50000) {
 
         const page = await ctx.newPage();
 
+        // Block images to speed up
+        await page.route('**/*', (route) => {
+            const type = route.request().resourceType();
+            if (['image', 'font', 'media'].includes(type)) {
+                route.abort();
+            } else {
+                route.continue();
+            }
+        });
+
+        await page.setExtraHTTPHeaders({ 'Accept-Language': 'id-ID,id;q=0.9' });
+
         const url = SHOPEE_SEARCH + encodeURIComponent(keyword);
         console.log(`[Shopee] Fetching: ${url}`);
 

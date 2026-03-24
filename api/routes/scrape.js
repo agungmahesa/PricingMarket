@@ -61,17 +61,14 @@ router.post('/:id', async (req, res) => {
 
         scrapeStatus.set(productId, { status: 'running', startedAt: new Date().toISOString() });
 
-        res.json({ success: true, status: 'started', message: `Scraping dimulai untuk "${product.name}"` });
-
-        scrapeProduct(product)
-            .then(listings => {
-                scrapeStatus.set(productId, { status: 'done', finishedAt: new Date().toISOString(), count: listings.length });
-                console.log(`[Scraper] Done product ${productId}: ${listings.length} listings`);
-            })
-            .catch(err => {
-                scrapeStatus.set(productId, { status: 'error', error: err.message });
-                console.error(`[Scraper] Error product ${productId}:`, err.message);
-            });
+        try {
+            const listings = await scrapeProduct(product);
+            scrapeStatus.set(productId, { status: 'done', finishedAt: new Date().toISOString(), count: listings.length });
+            res.json({ success: true, status: 'done', data: listings, message: `Scraping selesai untuk "${product.name}"` });
+        } catch (err) {
+            scrapeStatus.set(productId, { status: 'error', error: err.message });
+            res.status(500).json({ success: false, error: err.message });
+        }
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
