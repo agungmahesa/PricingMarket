@@ -48,8 +48,13 @@ async function scrapeShopee(keyword, maxResults = 20, basePrice = 50000) {
     try {
         browser = await getBrowser();
 
+        const userAgents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        ];
         const ctx = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            userAgent: userAgents[Math.floor(Math.random() * userAgents.length)],
             viewport: { width: 1366, height: 768 },
             locale: 'id-ID',
         });
@@ -72,33 +77,46 @@ async function scrapeShopee(keyword, maxResults = 20, basePrice = 50000) {
         console.log(`[Shopee] Fetching: ${url}`);
 
         await page.goto(url, { waitUntil: 'networkidle', timeout: 35000 });
-        // Wait for product grid
-        await page.waitForSelector('.shopee-search-item-result__items', { timeout: 20000 }).catch(() => { });
-        await page.waitForTimeout(3000); // Extra wait for lazy load
+        // Wait for product grid — use multiple possible classes
+        await page.waitForSelector('.shopee-search-item-result__items, [data-sqe="item"], .row', { timeout: 20000 }).catch(() => { });
+        await page.waitForTimeout(2000);
 
-        // Scroll to load more items
-        await page.evaluate(() => window.scrollBy(0, 600));
-        await page.waitForTimeout(1500);
+        // Scroll multiple times to trigger lazy load more effectively
+        await page.evaluate(() => window.scrollBy(0, 800));
+        await page.waitForTimeout(1000);
+        await page.evaluate(() => window.scrollBy(0, 800));
+        await page.waitForTimeout(1000);
 
         const items = await page.evaluate((max) => {
-            // Shopee uses li items in search grid
-            const cards = document.querySelectorAll('[data-sqe="item"]');
-            const results = [];
+            // Shopee uses various card selectors
+            const cardSelectors = [
+                '[data-sqe="item"]',
+                '.shopee-search-item-result__items > div',
+                '.col-xs-2-4'
+            ];
 
+            let cards = [];
+            for (const sel of cardSelectors) {
+                const found = document.querySelectorAll(sel);
+                if (found.length >= 5) { cards = Array.from(found); break; }
+            }
+
+            const results = [];
             for (let i = 0; i < Math.min(cards.length, max); i++) {
                 const card = cards[i];
                 try {
                     // Product name
-                    const nameEl = card.querySelector('[data-sqe="name"]');
+                    const nameEl = card.querySelector('[data-sqe="name"], ._10Wbs-, [class*="name"]');
                     const name = nameEl ? nameEl.textContent.trim() : '';
 
-                    // Price — Shopee shows prices in IDR without "Rp"
+                    // Price
                     // Various selectors for price across Shopee versions
                     const priceSelectors = [
                         '._10Wbs-._2EkuW8',
                         '.oR0oAg',
                         '[class*="price"]',
                         '.c3Ikfo',
+                        '.zeV_9L'
                     ];
                     let priceText = '';
                     for (const sel of priceSelectors) {
@@ -117,21 +135,21 @@ async function scrapeShopee(keyword, maxResults = 20, basePrice = 50000) {
                     const price = parseInt(priceText.replace(/\./g, '')) || 0;
 
                     // Rating
-                    const ratingEl = card.querySelector('[class*="rating"], ._0ZTAuv');
+                    const ratingEl = card.querySelector('[class*="rating"], ._0ZTAuv, .shopee-rating-stars');
                     const ratingText = ratingEl ? ratingEl.textContent.trim() : '';
                     const rating = parseFloat(ratingText) || null;
 
                     // Sold
-                    const soldEl = card.querySelector('[class*="sold"], ._1st_7l');
+                    const soldEl = card.querySelector('[class*="sold"], ._1st_7l, .shopee-item-card__sold-number');
                     const soldText = soldEl ? soldEl.textContent.replace(/[^0-9]/g, '') : '0';
                     const sold_count = parseInt(soldText) || 0;
 
-                    // Store name — Shopee doesn't always show on search page
-                    const storeEl = card.querySelector('[class*="shop-name"], [class*="shopName"]');
+                    // Store name
+                    const storeEl = card.querySelector('[class*="shop-name"], [class*="shopName"], ._3-sw_n');
                     const store_name = storeEl ? storeEl.textContent.trim() : 'Shopee Seller';
 
                     // Discount badge
-                    const discEl = card.querySelector('[class*="discount"], ._1st_7l ~ *');
+                    const discEl = card.querySelector('[class*="discount"], ._1st_7l ~ *, .percent');
                     const discText = discEl ? discEl.textContent.match(/\d+/) : null;
                     const discount_pct = discText ? parseInt(discText[0]) : 0;
 
@@ -140,10 +158,10 @@ async function scrapeShopee(keyword, maxResults = 20, basePrice = 50000) {
                     const store_url = linkEl ? 'https://shopee.co.id' + linkEl.getAttribute('href') : '';
 
                     // Badge
-                    const badgeEl = card.querySelector('[class*="mall"], [class*="official"]');
+                    const badgeEl = card.querySelector('[class*="mall"], [class*="official"], .shopee-badge--mall');
                     const badge = badgeEl ? 'Shopee Mall' : '';
 
-                    if (price > 0) {
+                    if (price > 0 && name.length > 2) {
                         results.push({ name, price, original_price: price, discount_pct, rating, sold_count, store_name, badge, store_url, is_real: true });
                     }
                 } catch (e) { }

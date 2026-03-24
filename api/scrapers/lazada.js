@@ -48,8 +48,13 @@ async function scrapeLazada(keyword, maxResults = 20, basePrice = 50000) {
     try {
         browser = await getBrowser();
 
+        const userAgents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        ];
         const ctx = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            userAgent: userAgents[Math.floor(Math.random() * userAgents.length)],
             viewport: { width: 1280, height: 800 },
             locale: 'id-ID',
         });
@@ -70,9 +75,16 @@ async function scrapeLazada(keyword, maxResults = 20, basePrice = 50000) {
         const url = LAZADA_SEARCH + encodeURIComponent(keyword);
         console.log(`[Lazada] Fetching: ${url}`);
 
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.waitForSelector('[data-qa-locator="product-item"]', { timeout: 20000 }).catch(() => { });
-        await page.waitForTimeout(2500);
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 35000 });
+
+        // Scroll for lazy load
+        await page.evaluate(() => window.scrollBy(0, 800));
+        await page.waitForTimeout(1000);
+        await page.evaluate(() => window.scrollBy(0, 800));
+        await page.waitForTimeout(1000);
+
+        await page.waitForSelector('[data-qa-locator="product-item"], .bmM-w, .info-content', { timeout: 20000 }).catch(() => { });
+        await page.waitForTimeout(1500);
 
         // Try to extract from embedded JSON data (most reliable for Lazada)
         const extracted = await page.evaluate((max) => {
@@ -106,35 +118,35 @@ async function scrapeLazada(keyword, maxResults = 20, basePrice = 50000) {
             }
 
             // Fallback: DOM parsing
-            const cards = document.querySelectorAll('[data-qa-locator="product-item"]');
+            const cards = document.querySelectorAll('[data-qa-locator="product-item"], .bmM-w, .info-content');
             const results = [];
             for (let i = 0; i < Math.min(cards.length, max); i++) {
                 const card = cards[i];
                 try {
-                    const nameEl = card.querySelector('[class*="title"]');
+                    const nameEl = card.querySelector('[class*="title"], [data-qa-locator="product-item"] a, .RfS5p');
                     const name = nameEl ? nameEl.textContent.trim() : '';
 
-                    const priceEl = card.querySelector('[class*="price"] span, .price-sale');
+                    const priceEl = card.querySelector('[class*="price"] span, .price-sale, .ooOxS');
                     const priceMatch = priceEl ? priceEl.textContent.match(/Rp\s*([\d.]+)/) : null;
                     const price = priceMatch ? parseInt(priceMatch[1].replace(/\./g, '')) : 0;
 
-                    const origEl = card.querySelector('[class*="original"], .price-original');
+                    const origEl = card.querySelector('[class*="original"], .price-original, ._17m_b');
                     const origMatch = origEl ? origEl.textContent.match(/Rp\s*([\d.]+)/) : null;
                     const original_price = origMatch ? parseInt(origMatch[1].replace(/\./g, '')) : price;
 
-                    const ratingEl = card.querySelector('[class*="rating"]');
+                    const ratingEl = card.querySelector('[class*="rating"], .rate-value');
                     const rating = ratingEl ? parseFloat(ratingEl.textContent) || null : null;
 
-                    const storeEl = card.querySelector('[class*="seller"], [class*="shop"]');
+                    const storeEl = card.querySelector('[class*="seller"], [class*="shop"], .PrNBy');
                     const store_name = storeEl ? storeEl.textContent.trim() : 'Lazada Seller';
 
                     const linkEl = card.querySelector('a');
                     const store_url = linkEl ? linkEl.href : '';
 
-                    const badgeEl = card.querySelector('[class*="lazmall"], [class*="official"]');
+                    const badgeEl = card.querySelector('[class*="lazmall"], [class*="official"], ._2Srvq');
                     const badge = badgeEl ? 'LazMall' : '';
 
-                    if (price > 0) results.push({ name, price, original_price, discount_pct: 0, rating, sold_count: 0, store_name, badge, store_url });
+                    if (price > 0 && name.length > 2) results.push({ name, price, original_price, discount_pct: 0, rating, sold_count: 0, store_name, badge, store_url, is_real: true });
                 } catch (e) { }
             }
             return results;

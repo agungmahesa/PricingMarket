@@ -22,7 +22,29 @@ const supabase = require('./supabase');
 app.get('/api/health', (req, res) => {
     res.json({ success: true, message: 'API is alive', time: new Date().toISOString() });
 });
-
+// Proxy Diagnostic
+app.get('/api/health/proxy', async (req, res) => {
+    const axios = require('axios');
+    const proxyUrl = process.env.PROXY_URL;
+    if (!proxyUrl) return res.json({ success: false, error: 'PROXY_URL not set' });
+    try {
+        const { URL } = require('url');
+        const p = new URL(proxyUrl);
+        const start = Date.now();
+        const response = await axios.get('https://api.ipify.org?format=json', {
+            proxy: {
+                protocol: p.protocol.replace(':', ''),
+                host: p.hostname,
+                port: p.port,
+                auth: { username: p.username, password: p.password }
+            },
+            timeout: 10000
+        });
+        res.json({ success: true, ip: response.data.ip, duration: Date.now() - start });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 app.use('/api/products', productsRouter);
 app.use('/api/products', pricesRouter);   // nested: /api/products/:id/prices etc.
 app.use('/api/scrape', scrapeRouter);

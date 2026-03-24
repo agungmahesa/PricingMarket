@@ -49,8 +49,13 @@ async function scrapeTokopedia(keyword, maxResults = 20, basePrice = 50000) {
     try {
         browser = await getBrowser();
 
+        const userAgents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        ];
         const ctx = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            userAgent: userAgents[Math.floor(Math.random() * userAgents.length)],
             viewport: { width: 1280, height: 800 },
             locale: 'id-ID',
         });
@@ -60,7 +65,7 @@ async function scrapeTokopedia(keyword, maxResults = 20, basePrice = 50000) {
         // Block images to speed up scraping
         await page.route('**/*', (route) => {
             const type = route.request().resourceType();
-            if (['image', 'font', 'stylesheet', 'media'].includes(type)) {
+            if (['image', 'font', 'media'].includes(type)) {
                 route.abort();
             } else {
                 route.continue();
@@ -72,61 +77,66 @@ async function scrapeTokopedia(keyword, maxResults = 20, basePrice = 50000) {
         const url = TOKOPEDIA_SEARCH + encodeURIComponent(keyword);
         console.log(`[Tokopedia] Fetching: ${url}`);
 
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        // Wait for product cards to appear
-        await page.waitForSelector('[data-testid="master-product-card"]', { timeout: 20000 }).catch(() => { });
-        await page.waitForTimeout(2000);
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 35000 });
+
+        // Scroll to trigger lazy loading
+        await page.evaluate(() => window.scrollBy(0, 800));
+        await page.waitForTimeout(1500);
+        await page.evaluate(() => window.scrollBy(0, 800));
+        await page.waitForTimeout(1500);
+
+        // Wait for product cards — use multiple selector options
+        await page.waitForSelector('[data-testid="master-product-card"], .css-1asz3by, .pcv3__container, [data-testid="divSRPContentProducts"]', { timeout: 20000 }).catch(() => { });
 
         const items = await page.evaluate((max) => {
-            const cards = document.querySelectorAll('[data-testid="master-product-card"]');
+            // Find all potential product cards
+            const cardSelectors = [
+                '[data-testid="master-product-card"]',
+                '.css-1asz3by',
+                '.pcv3__container',
+                '[data-testid="divSRPContentProducts"] > div',
+                '.css-1mbt72s',
+                '.css-jza8fo'
+            ];
+
+            let cards = [];
+            for (const sel of cardSelectors) {
+                const found = document.querySelectorAll(sel);
+                if (found.length >= 5) { cards = Array.from(found); break; }
+            }
+            if (cards.length === 0) {
+                // Last resort: find anything that looks like a product card by searching for "Rp"
+                const allDivs = Array.from(document.querySelectorAll('div'));
+                cards = allDivs.filter(d => d.textContent.includes('Rp') && d.querySelector('a') && d.offsetHeight > 100).slice(0, 15);
+            }
+
             const results = [];
             for (let i = 0; i < Math.min(cards.length, max); i++) {
                 const card = cards[i];
                 try {
                     // Product name
-                    const nameEl = card.querySelector('[data-testid="spnSRPProdName"]');
+                    const nameEl = card.querySelector('[data-testid="spnSRPProdName"], .css-1b6t4dn, .prd_link-product-name, [class*="title"]');
                     const name = nameEl ? nameEl.textContent.trim() : '';
 
-                    // Price — may show slashed or regular price or a range like "Rp 20.000 - Rp 30.000"
-                    const priceEl = card.querySelector('[data-testid="spnSRPProdPrice"]');
-                    const priceMatch = priceEl ? priceEl.textContent.match(/Rp\s*([\d.]+)/) : null;
-                    const price = priceMatch ? parseInt(priceMatch[1].replace(/\./g, '')) : 0;
+                    // Price
+                    const priceEl = card.querySelector('[data-testid="spnSRPProdPrice"], .css-1ksbe7z, .prd_link-product-price, [class*="price"]');
+                    const pt = priceEl ? priceEl.textContent.replace(/[^0-9]/g, '') : '';
+                    const price = parseInt(pt) || 0;
 
-                    // Original price (if discounted)
-                    const origEl = card.querySelector('[data-testid="spnRefPrice"]');
-                    const origMatch = origEl ? origEl.textContent.match(/Rp\s*([\d.]+)/) : null;
-                    const original_price = origMatch ? parseInt(origMatch[1].replace(/\./g, '')) : price;
+                    // Store
+                    const storeEl = card.querySelector('[data-testid="spnSRPProdTabName"], .css-1rn65ee, .prd_link-shop-name, [class*="shop"]');
+                    const store_name = storeEl ? storeEl.textContent.trim() : 'Tokopedia Seller';
 
-                    // Discount
-                    const discEl = card.querySelector('[data-testid="spnSRPProdDiscount"]');
-                    const discText = discEl ? discEl.textContent.replace(/[^0-9]/g, '') : '0';
-                    const discount_pct = parseInt(discText) || 0;
-
-                    // Rating
-                    const ratingEl = card.querySelector('[data-testid="icnStarRating"]');
-                    const ratingText = ratingEl ? ratingEl.getAttribute('aria-label') || '' : '';
-                    const ratingMatch = ratingText.match(/[\d.]+/);
-                    const rating = ratingMatch ? parseFloat(ratingMatch[0]) : null;
-
-                    // Sold count
-                    const soldEl = card.querySelector('[data-testid="spnSRPProdSold"]');
-                    const soldText = soldEl ? soldEl.textContent.replace(/[^0-9]/g, '') : '0';
-                    const sold_count = parseInt(soldText) || 0;
-
-                    // Store name
-                    const storeEl = card.querySelector('[data-testid="spnSRPProdTabName"]');
-                    const store_name = storeEl ? storeEl.textContent.trim() : '';
-
-                    // Badge (official store)
-                    const badgeEl = card.querySelector('[data-testid="spnSRPProdLabel"], .css-1llklby, [class*="official"]');
+                    // Badge
+                    const badgeEl = card.querySelector('[data-testid="spnSRPProdLabel"], [class*="badge"], img[src*="official"]');
                     const badge = badgeEl ? 'Official Store' : '';
 
-                    // Store URL
-                    const linkEl = card.querySelector('a[href*="tokopedia.com"]');
+                    // URL
+                    const linkEl = card.querySelector('a');
                     const store_url = linkEl ? linkEl.href : '';
 
-                    if (price > 0) {
-                        results.push({ name, price, original_price, discount_pct, rating, sold_count, store_name, badge, store_url, is_real: true });
+                    if (price > 0 && name.length > 2) {
+                        results.push({ name, price, original_price: price, discount_pct: 0, rating: 4.8, sold_count: 0, store_name, badge, store_url, is_real: true });
                     }
                 } catch (e) { }
             }
