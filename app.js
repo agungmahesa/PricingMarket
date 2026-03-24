@@ -662,12 +662,18 @@ async function saveProduct() {
 // ── Server Error State ────────────────────────────────────
 function showServerError() {
   const tbody = document.getElementById('productTableBody');
-  if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#ef4444;padding:2rem">
-      ⚠️ Tidak dapat terhubung ke server. Pastikan server berjalan:<br>
-      <code style="background:#0a0f1e;padding:4px 8px;border-radius:4px;color:#22d3ee">cd pricing-intelligence && npm start</code>
-    </td></tr>`;
-  }
+  if (!tbody) return;
+
+  const isVercel = window.location.hostname.includes('vercel.app');
+  const errorMsg = isVercel
+    ? `⚠️ Dashboard tidak dapat terhubung ke Backend / Supabase.<br>
+       <span style="font-size:0.9rem;opacity:0.8">Pastikan <b>Environment Variables</b> (SUPABASE_URL & KEY) sudah diset di Vercel <br> dan tabel database sudah dibuat melalui SQL Editor.</span>`
+    : `⚠️ Tidak dapat terhubung ke server. Pastikan server berjalan:<br>
+       <code style="background:#0a0f1e;padding:4px 8px;border-radius:4px;color:#22d3ee">cd pricing-intelligence && npm start</code>`;
+
+  tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#ef4444;padding:2rem">
+    ${errorMsg}
+  </td></tr>`;
 }
 
 // ── Navigation ────────────────────────────────────────────
