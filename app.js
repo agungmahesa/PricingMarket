@@ -517,15 +517,28 @@ window.triggerScrape = async function (productId) {
   spinBtns.forEach(b => { b.disabled = true; b.textContent = '⏳ Scraping...'; });
 
   const r = await apiFetch(`/scrape/${productId}`, { method: 'POST' });
-  if (!r.success) {
+
+  if (r.success && r.status === 'done') {
+    // Direct success if server awaited
     spinBtns.forEach(b => { b.disabled = false; b.textContent = '🔄 Scrape'; });
-    alert('Gagal memulai scraping: ' + r.error);
+    showToast(`✅ Scraping selesai! ${r.count || (r.data ? r.data.length : 0)} listing ditemukan.`, 'success');
+    await loadProducts(); await loadStats(); await loadAlerts();
+    const activePage = document.querySelector('.nav-item.active')?.dataset.page;
+    if (activePage === 'competitors') await renderCompetitorPage();
+    if (activePage === 'recommendations') await renderRecommendationsPage();
+    loadChartJS(() => loadAndRenderChart(selectedProductId || allProducts[0]?.id));
     return;
   }
 
-  showToast('Scraping dimulai! Biasanya memakan waktu 30-60 detik per platform.', 'info');
+  if (!r.success) {
+    spinBtns.forEach(b => { b.disabled = false; b.textContent = '🔄 Scrape'; });
+    showToast('⚠️ Gagal: ' + (r.error || 'Timeout'), 'error');
+    return;
+  }
 
-  // Poll status every 5 seconds
+  showToast('Scraping dimulai...', 'info');
+
+  // Fallback Polling (if server returns early or for batch)
   if (scrapePollers[productId]) clearInterval(scrapePollers[productId]);
   scrapePollers[productId] = setInterval(async () => {
     const sr = await apiFetch(`/scrape/${productId}/status`);
@@ -535,16 +548,14 @@ window.triggerScrape = async function (productId) {
       spinBtns.forEach(b => { b.disabled = false; b.textContent = '🔄 Scrape'; });
 
       if (sr.data.status === 'done') {
-        showToast(`✅ Scraping selesai! ${sr.data.count} listing ditemukan.`, 'success');
-        await loadProducts();
-        await loadStats();
-        await loadAlerts();
+        showToast(`✅ Scraping selesai!`, 'success');
+        await loadProducts(); await loadStats(); await loadAlerts();
         const activePage = document.querySelector('.nav-item.active')?.dataset.page;
         if (activePage === 'competitors') await renderCompetitorPage();
         if (activePage === 'recommendations') await renderRecommendationsPage();
         loadChartJS(() => loadAndRenderChart(selectedProductId || allProducts[0]?.id));
       } else {
-        showToast('⚠️ Scraping error. Cek konsol server.', 'error');
+        showToast('⚠️ Scraping error.', 'error');
       }
     }
   }, 5000);

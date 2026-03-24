@@ -26,18 +26,22 @@ async function scrapeProduct(product) {
         lazada: scrapeLazada,
     };
 
-    for (const platform of platforms) {
-        if (!scraperMap[platform]) continue;
-        try {
-            console.log(`[Scraper] Starting ${platform} for "${product.keyword}"`);
-            const listings = await scraperMap[platform](product.keyword, 15, product.our_price);
-            allListings.push(...listings);
-            // Small delay between platforms
-            await new Promise(r => setTimeout(r, 1500));
-        } catch (err) {
-            console.error(`[Scraper] ${platform} failed for product ${product.id}: ${err.message}`);
-        }
-    }
+    // Run all scrapers in parallel to fit in Vercel's 10s timeout
+    const scrapePromises = platforms
+        .filter(p => scraperMap[p])
+        .map(async (platform) => {
+            try {
+                console.log(`[Scraper] Starting ${platform} for "${product.keyword}"`);
+                // Limit to 10 results for speed
+                return await scraperMap[platform](product.keyword, 10, product.our_price);
+            } catch (err) {
+                console.error(`[Scraper] ${platform} failed: ${err.message}`);
+                return [];
+            }
+        });
+
+    const results = await Promise.all(scrapePromises);
+    results.forEach(listings => allListings.push(...listings));
 
     if (allListings.length > 0) {
         await insertListings(product.id, allListings);
