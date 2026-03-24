@@ -8,23 +8,35 @@ const sparticuz = require('@sparticuz/chromium');
 const TOKOPEDIA_SEARCH = 'https://www.tokopedia.com/search?st=product&q=';
 
 async function getBrowser() {
+    const proxyUrl = process.env.PROXY_URL; // http://user:pass@host:port
+    const launchOptions = {
+        args: ['--disable-blink-features=AutomationControlled'],
+    };
+
+    if (proxyUrl) {
+        launchOptions.proxy = { server: proxyUrl };
+        console.log(`[Proxy] Using residential proxy for scraping`);
+    }
+
     if (process.env.VERCEL) {
         const { chromium: playwright } = require('playwright-core');
         return await playwright.launch({
-            args: [...sparticuz.args, '--disable-blink-features=AutomationControlled'],
+            ...launchOptions,
+            args: [...sparticuz.args, ...launchOptions.args],
             executablePath: await sparticuz.executablePath(),
             headless: sparticuz.headless,
         });
     } else {
         const { chromium } = require('playwright');
         return await chromium.launch({
+            ...launchOptions,
             headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-http2',
-                '--disable-blink-features=AutomationControlled'
+                ...launchOptions.args
             ],
         });
     }
