@@ -1,36 +1,19 @@
 {
     "version": 2,
-    "buildCommand": "npm install",
-    "builds": [
-        {
-            "src": "server/server.js",
-            "use": "@vercel/node",
-            "config": {
-                "memory": 1024,
-                "maxDuration": 60
-            }
-        },
-        {
-            "src": "index.html",
-            "use": "@vercel/static"
-        },
-        {
-            "src": "style.css",
-            "use": "@vercel/static"
-        },
-        {
-            "src": "app.js",
-            "use": "@vercel/static"
-        }
-    ],
     "rewrites": [
         {
             "source": "/api/(.*)",
-            "destination": "/server/server.js"
+            "destination": "/api/index.js"
         },
         {
             "source": "/(.*)",
             "destination": "/index.html"
         }
-    ]
+    ],
+    "functions": {
+        "api/index.js": {
+            "memory": 1024,
+            "maxDuration": 60
+        }
+    }
 }
