@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Marketplace Pricing Intelligence</title>
+    <meta name="description"
+        content="Sistem intelijen harga marketplace — monitor, analisis, dan optimalkan harga produk Anda di Tokopedia, Shopee, dan Lazada secara real-time." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+            </div>
+            <span class="logo-text">PriceIQ</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="dashboard">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                </svg>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-page="monitor">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>Monitor Harga</span>
+            </a>
+            <a href="#" class="nav-item" data-page="competitors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <span>Kompetitor</span>
+            </a>
+            <a href="#" class="nav-item" data-page="recommendations">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon
+                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <span>Rekomendasi</span>
+            </a>
+            <a href="#" class="nav-item" data-page="alerts">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                <span>Alert</span>
+                <span class="badge">5</span>
+            </a>
+            <div class="nav-divider"></div>
+            <a href="#" class="nav-item" data-page="settings">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+                </svg>
+                <span>Pengaturan</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">AG</div>
+                <div class="user-details">
+                    <span class="user-name">Agung Store</span>
+                    <span class="user-plan">Pro Plan</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-btn" id="menuBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
+                <div class="page-title" id="pageTitle">Dashboard</div>
+            </div>
+            <div class="topbar-right">
+                <div class="search-box">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input type="text" placeholder="Cari produk..." id="searchInput" />
+                </div>
+                <div class="topbar-icons">
+                    <button class="icon-btn" id="refreshBtn" title="Refresh Data">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="23 4 23 10 17 10" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                    </button>
+                    <button class="icon-btn notif-btn" id="notifBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                        <span class="notif-dot"></span>
+                    </button>
+                </div>
+                <div class="platform-selector">
+                    <button class="platform-btn active" data-platform="all">Semua</button>
+                    <button class="platform-btn" data-platform="tokopedia">Tokopedia</button>
+                    <button class="platform-btn" data-platform="shopee">Shopee</button>
+                    <button class="platform-btn" data-platform="lazada">Lazada</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page: Dashboard -->
+        <div class="page active" id="page-dashboard">
+            <!-- Stats Row -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+                            <line x1="1" y1="12" x2="23" y2="12" />
+                        </svg></div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="stat-products">247</div>
+                        <div class="stat-label">Produk Dipantau</div>
+                        <div class="stat-change positive">+12 minggu ini</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="1" x2="12" y2="23" />
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg></div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="stat-avg-price">Rp 185K</div>
+                        <div class="stat-label">Rata-rata Harga Pasar</div>
+                        <div class="stat-change negative">-2.4% vs bulan lalu</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg></div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="stat-competitors">1,342</div>
+                        <div class="stat-label">Listing Kompetitor</div>
+                        <div class="stat-change positive">Aktif dipantau</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg></div>
+                    <div class="stat-content">
+                        <div class="stat-value alert-val" id="stat-alerts">5</div>
+                        <div class="stat-label">Alert Aktif</div>
+                        <div class="stat-change negative">3 perlu tindakan</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Grid -->
+            <div class="main-grid">
+                <!-- Left column -->
+                <div class="col-left">
+                    <!-- Price Chart -->
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Tren Harga Pasar</div>
+                                <div class="card-subtitle">30 hari terakhir</div>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                <select id="productSelect" class="filter-select" style="font-size:12px"></select>
+                                <div class="chart-tabs">
+                                    <button class="chart-tab active" data-range="7">7H</button>
+                                    <button class="chart-tab" data-range="30">30H</button>
+                                    <button class="chart-tab" data-range="90">90H</button>
+                                </div>
+                            </div>
+                        </div>
+                        <canvas id="priceChart" height="200"></canvas>
+                        <div class="chart-legend">
+                            <span class="legend-item"><span class="dot" style="background:#6366f1"></span>Harga
+                                Kita</span>
+                            <span class="legend-item"><span class="dot" style="background:#22d3ee"></span>Min
+                                Pasar</span>
+                            <span class="legend-item"><span class="dot" style="background:#f59e0b"></span>Median
+                                Pasar</span>
+                            <span class="legend-item"><span class="dot" style="background:#ef4444"></span>Max
+                                Pasar</span>
+                        </div>
+                    </div>
+
+                    <!-- Product Table -->
+                    <div class="card table-card">
+                        <div class="card-header">
+                            <div class="card-title">Monitor Produk</div>
+                            <div class="table-actions">
+                                <select class="filter-select" id="filterStatus">
+                                    <option value="all">Semua Status</option>
+                                    <option value="optimal">Optimal</option>
+                                    <option value="tinggi">Terlalu Tinggi</option>
+                                    <option value="rendah">Terlalu Rendah</option>
+                                </select>
+                                <button class="btn-sm btn-primary" id="addProductBtn">+ Tambah Produk</button>
+                            </div>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table" id="productTable">
+                                <thead>
+                                    <tr>
+                                        <th>Produk</th>
+                                        <th>Harga Kita</th>
+                                        <th>Min Pasar</th>
+                                        <th>Median Pasar</th>
+                                        <th>Max Pasar</th>
+                                        <th>Status</th>
+                                        <th>Skor</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right column -->
+                <div class="col-right">
+                    <!-- Competitive Score -->
+                    <div class="card score-card">
+                        <div class="card-title">Skor Daya Saing</div>
+                        <div class="score-ring-wrap">
+                            <svg viewBox="0 0 120 120" class="score-ring">
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="#1e293b" stroke-width="10" />
+                                <circle cx="60" cy="60" r="50" fill="none" stroke="url(#scoreGrad)" stroke-width="10"
+                                    stroke-dasharray="314" stroke-dashoffset="75" stroke-linecap="round"
+                                    transform="rotate(-90 60 60)" />
+                                <defs>
+                                    <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#6366f1" />
+                                        <stop offset="100%" stop-color="#22d3ee" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div class="score-center">
+                                <div class="score-num">76</div>
+                                <div class="score-label">/ 100</div>
+                            </div>
+                        </div>
+                        <div class="score-breakdown">
+                            <div class="score-row">
+                                <span>Posisi Harga</span>
+                                <div class="mini-bar">
+                                    <div class="mini-fill" style="width:82%;background:#6366f1"></div>
+                                </div>
+                                <span>82</span>
+                            </div>
+                            <div class="score-row">
+                                <span>Kecepatan Update</span>
+                                <div class="mini-bar">
+                                    <div class="mini-fill" style="width:70%;background:#22d3ee"></div>
+                                </div>
+                                <span>70</span>
+                            </div>
+                            <div class="score-row">
+                                <span>Coverage Pasar</span>
+                                <div class="mini-bar">
+                                    <div class="mini-fill" style="width:65%;background:#f59e0b"></div>
+                                </div>
+                                <span>65</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Platform Distribution -->
+                    <div class="card platform-card">
+                        <div class="card-title">Distribusi Platform</div>
+                        <div class="platform-list">
+                            <div class="platform-row">
+                                <span class="platform-name">
+                                    <span class="platform-dot toko"></span>Tokopedia
+                                </span>
+                                <div class="platform-bar-wrap">
+                                    <div class="platform-bar"
+                                        style="width:55%;background:linear-gradient(90deg,#3bba4c,#2d9b3d)"></div>
+                                </div>
+                                <span class="platform-pct">55%</span>
+                            </div>
+                            <div class="platform-row">
+                                <span class="platform-name">
+                                    <span class="platform-dot shopee"></span>Shopee
+                                </span>
+                                <div class="platform-bar-wrap">
+                                    <div class="platform-bar"
+                                        style="width:30%;background:linear-gradient(90deg,#ee4d2d,#c73e24)"></div>
+                                </div>
+                                <span class="platform-pct">30%</span>
+                            </div>
+                            <div class="platform-row">
+                                <span class="platform-name">
+                                    <span class="platform-dot lazada"></span>Lazada
+                                </span>
+                                <div class="platform-bar-wrap">
+                                    <div class="platform-bar"
+                                        style="width:15%;background:linear-gradient(90deg,#0f0f96,#0a0a7a)"></div>
+                                </div>
+                                <span class="platform-pct">15%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Alerts -->
+                    <div class="card alerts-card">
+                        <div class="card-header">
+                            <div class="card-title">Alert Terkini</div>
+                            <span class="badge-pill">5 baru</span>
+                        </div>
+                        <div class="alerts-list" id="alertsList"></div>
+                    </div>
+
+                    <!-- Quick Recommendation -->
+                    <div class="card reco-card">
+                        <div class="card-title">Rekomendasi Harga</div>
+                        <div class="reco-item">
+                            <div class="reco-product">Samsung Galaxy A55 128GB</div>
+                            <div class="reco-row">
+                                <span class="label">Harga Saat Ini</span>
+                                <span class="value current">Rp 4.299.000</span>
+                            </div>
+                            <div class="reco-row">
+                                <span class="label">Harga Optimal</span>
+                                <span class="value optimal">Rp 4.149.000</span>
+                            </div>
+                            <div class="reco-row">
+                                <span class="label">Est. Dampak</span>
+                                <span class="value positive-text">+23% volume</span>
+                            </div>
+                            <div class="reco-row">
+                                <span class="label">Strategi</span>
+                                <span class="strategy-badge">Penetrasi</span>
+                            </div>
+                            <button class="btn-apply" id="applyPriceBtn">Terapkan Harga</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: Monitor Harga -->
+        <div class="page" id="page-monitor">
+            <div class="card" style="padding:2rem;text-align:center;margin-top:2rem;">
+                <h2 style="color:#e2e8f0;margin-bottom:1rem;">Monitor Harga Real-Time</h2>
+                <p style="color:#94a3b8;">Klik tab Dashboard untuk melihat demo lengkap.</p>
+            </div>
+        </div>
+
+        <!-- Page: Kompetitor -->
+        <div class="page" id="page-competitors">
+            <div class="competitor-full" id="competitorFull"></div>
+        </div>
+
+        <!-- Page: Rekomendasi -->
+        <div class="page" id="page-recommendations">
+            <div class="recommendations-full" id="recommendationsFull"></div>
+        </div>
+
+        <!-- Page: Alert -->
+        <div class="page" id="page-alerts">
+            <div class="alerts-full" id="alertsFull"></div>
+        </div>
+
+        <!-- Page: Settings -->
+        <div class="page" id="page-settings">
+            <div class="settings-full" id="settingsFull"></div>
+        </div>
+    </main>
+
+    <!-- Modal: Add Product -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Tambah Produk</h3>
+                <button class="modal-close" id="modalClose">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nama Produk *</label>
+                    <input type="text" id="inp-name" class="form-input" placeholder="e.g. Samsung Galaxy A55 128GB" />
+                </div>
+                <div class="form-group">
+                    <label>Keyword Pencarian *</label>
+                    <input type="text" id="inp-keyword" class="form-input"
+                        placeholder="Keyword yang akan dicari di marketplace, e.g. Samsung A55 128GB" />
+                    <span style="font-size:11px;color:#64748b;margin-top:4px;display:block">Keyword ini digunakan untuk
+                        mencari listing kompetitor di marketplace</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>SKU</label>
+                        <input type="text" id="inp-sku" class="form-input" placeholder="SKU-001" />
+                    </div>
+                    <div class="form-group">
+                        <label>Kategori</label>
+                        <select id="inp-category" class="form-input">
+                            <option>Elektronik</option>
+                            <option>Fashion</option>
+                            <option>Kecantikan</option>
+                            <option>Rumah Tangga</option>
+                            <option>Makanan & Minuman</option>
+                            <option>Olahraga</option>
+                            <option>Otomotif</option>
+                            <option>Lainnya</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Harga Jual Kita (Rp)</label>
+                        <input type="number" id="inp-price" class="form-input" placeholder="4299000" />
+                    </div>
+                    <div class="form-group">
+                        <label>HPP / Harga Modal (Rp)</label>
+                        <input type="number" id="inp-hpp" class="form-input" placeholder="3500000" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Target Margin (%)</label>
+                    <input type="number" id="inp-margin" class="form-input" placeholder="20" value="20" />
+                </div>
+                <div class="form-group">
+                    <label>Platform yang Dipantau</label>
+                    <div class="platform-checks" id="platform-checks">
+                        <label class="check-label"><input type="checkbox" value="tokopedia" checked /> Tokopedia</label>
+                        <label class="check-label"><input type="checkbox" value="shopee" checked /> Shopee</label>
+                        <label class="check-label"><input type="checkbox" value="lazada" /> Lazada</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="modalCancel">Batal</button>
+                <button class="btn-primary-full" id="modalSave">Simpan & Pantau</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
