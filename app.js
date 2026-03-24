@@ -2,7 +2,7 @@
    MARKETPLACE PRICING INTELLIGENCE — app.js (Live API version)
    ============================================================ */
 
-const API = 'http://localhost:3001/api';
+const API = '/api';
 
 // ── Utility ──────────────────────────────────────────────
 function formatRp(num) {
