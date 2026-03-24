@@ -1,10 +1,13 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://dimwgnrxfwkeopjurmdn.supabase.co';
-const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_0QFlOSekkwzCTh-5VYvw-g_u8safgWX';
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
 
-console.log('Initializing Supabase Client:', supabaseUrl);
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseKey) {
+    console.error('❌ Supabase configuration missing! Set SUPABASE_URL and SUPABASE_KEY environment variables.');
+}
+
+const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder');
 
 module.exports = supabase;
