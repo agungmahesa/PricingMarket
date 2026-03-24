@@ -305,7 +305,7 @@ async function renderCompetitorPage() {
         const diffLabel = { cheaper: '⬇ Lebih Murah dari Kita', dearer: '⬆ Lebih Mahal dari Kita', same: '≈ Setara Harga Kita' };
         return `
               <div class="comp-card">
-                <div class="comp-platform ${l.platform}">${platLabel[l.platform] || l.platform}</div>
+                <div class="comp-platform ${l.platform}">${platLabel[l.platform] || l.platform} ${l.is_real ? '<span style="color:#22c55e;font-size:10px;margin-left:5px">● Verified</span>' : '<span style="color:#f59e0b;font-size:10px;margin-left:5px" title="Dipicu karena blokir bot">● Simulated</span>'}</div>
                 <div class="comp-store">${l.store_name || '—'}</div>
                 <div class="comp-price">${formatRpFull(l.price)}</div>
                 <div class="comp-meta">
@@ -316,7 +316,10 @@ async function renderCompetitorPage() {
                 </div>
                 ${l.store_url ? `<a href="${l.store_url}" target="_blank" style="font-size:11px;color:#6366f1;text-decoration:none;display:inline-block;margin-top:6px">Lihat di ${platLabel[l.platform]} →</a>` : ''}
                 <div class="comp-diff ${diff}">${diffLabel[diff]}</div>
-                <div style="font-size:11px;color:#475569;margin-top:6px">${new Date(l.scraped_at).toLocaleString('id-ID')}</div>
+                <div style="font-size:11px;color:#475569;margin-top:6px;display:flex;justify-content:space-between">
+                  <span>${new Date(l.scraped_at).toLocaleString('id-ID')}</span>
+                  ${!l.is_real ? '<span style="color:#64748b;font-style:italic">Bypass Mode</span>' : ''}
+                </div>
               </div>`;
       }).join('')}
     </div>
