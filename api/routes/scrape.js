@@ -40,8 +40,14 @@ async function scrapeProduct(product) {
             }
         });
 
+    console.log(`[Scraper] Starting parallel scrape for ${platforms.length} platforms`);
     const results = await Promise.all(scrapePromises);
-    results.forEach(listings => allListings.push(...listings));
+
+    results.forEach((listings, idx) => {
+        const platform = platforms.filter(p => scraperMap[p])[idx];
+        console.log(`[Scraper] ${platform} returned ${listings.length} results`);
+        allListings.push(...listings);
+    });
 
     if (allListings.length > 0) {
         await insertListings(product.id, allListings);

@@ -144,7 +144,7 @@ async function scrapeShopee(keyword, maxResults = 20, basePrice = 50000) {
                     const badge = badgeEl ? 'Shopee Mall' : '';
 
                     if (price > 0) {
-                        results.push({ name, price, original_price: price, discount_pct, rating, sold_count, store_name, badge, store_url });
+                        results.push({ name, price, original_price: price, discount_pct, rating, sold_count, store_name, badge, store_url, is_real: true });
                     }
                 } catch (e) { }
             }
@@ -168,8 +168,8 @@ async function scrapeShopee(keyword, maxResults = 20, basePrice = 50000) {
             const bp = basePrice > 0 ? basePrice : 50000;
             const searchUrl = 'https://shopee.co.id/search?keyword=' + encodeURIComponent(keyword);
             listings.push(
-                { name: `${keyword} - Garansi Resmi`, platform: 'shopee', price: Math.round(bp * 0.96), original_price: Math.round(bp * 1.05), discount_pct: 8, rating: 4.8, sold_count: 240, store_name: 'Official Store', badge: 'Star Seller', store_url: searchUrl },
-                { name: keyword, platform: 'shopee', price: Math.round(bp), original_price: Math.round(bp), discount_pct: 0, rating: 4.9, sold_count: 890, store_name: 'Store Resmi Toko', badge: 'Shopee Mall', store_url: searchUrl }
+                { name: `${keyword} - Garansi Resmi`, platform: 'shopee', price: Math.round(bp * 0.96), original_price: Math.round(bp * 1.05), discount_pct: 8, rating: 4.8, sold_count: 240, store_name: 'Official Store', badge: 'Star Seller', store_url: searchUrl, is_real: false },
+                { name: keyword, platform: 'shopee', price: Math.round(bp), original_price: Math.round(bp), discount_pct: 0, rating: 4.9, sold_count: 890, store_name: 'Store Resmi Toko', badge: 'Shopee Mall', store_url: searchUrl, is_real: false }
             );
         }
 

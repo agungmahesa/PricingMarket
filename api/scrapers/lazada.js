@@ -97,6 +97,7 @@ async function scrapeLazada(keyword, maxResults = 20, basePrice = 50000) {
                                     store_name: item.sellerName || item.brandName || 'Lazada Seller',
                                     store_url: item.productUrl ? 'https://www.lazada.co.id' + item.productUrl : '',
                                     badge: item.isPowerSeller ? 'LazMall' : '',
+                                    is_real: true
                                 }));
                             }
                         }
@@ -148,8 +149,8 @@ async function scrapeLazada(keyword, maxResults = 20, basePrice = 50000) {
             const bp = basePrice > 0 ? basePrice : 50000;
             const searchUrl = 'https://www.lazada.co.id/catalog/?q=' + encodeURIComponent(keyword);
             listings.push(
-                { name: `${keyword} Bonus Ekstra`, platform: 'lazada', price: Math.round(bp * 0.99), original_price: Math.round(bp * 1.05), discount_pct: 3, rating: 4.8, sold_count: 0, store_name: 'Lazada Authorized', badge: 'LazMall', store_url: searchUrl },
-                { name: keyword, platform: 'lazada', price: Math.round(bp * 1.01), original_price: Math.round(bp * 1.01), discount_pct: 0, rating: 5.0, sold_count: 0, store_name: 'Flagship Store', badge: 'LazMall', store_url: searchUrl }
+                { name: `${keyword} Bonus Ekstra`, platform: 'lazada', price: Math.round(bp * 0.99), original_price: Math.round(bp * 1.05), discount_pct: 3, rating: 4.8, sold_count: 0, store_name: 'Lazada Authorized', badge: 'LazMall', store_url: searchUrl, is_real: false },
+                { name: keyword, platform: 'lazada', price: Math.round(bp * 1.01), original_price: Math.round(bp * 1.01), discount_pct: 0, rating: 5.0, sold_count: 0, store_name: 'Flagship Store', badge: 'LazMall', store_url: searchUrl, is_real: false }
             );
         }
 

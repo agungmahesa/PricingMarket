@@ -486,22 +486,22 @@ function renderSettingsPage() {
     <div class="settings-section">
       <h3>Status Server</h3>
       <div class="settings-row">
-        <div><div class="settings-label">Backend API</div><div class="settings-desc">http://localhost:3001</div></div>
+        <div><div class="settings-label">Backend API</div><div class="settings-desc">${window.location.origin}${API}</div></div>
         <span id="serverStatus" style="font-weight:700;color:#22c55e">● Online</span>
       </div>
       <div class="settings-row">
-        <div><div class="settings-label">Database</div><div class="settings-desc">SQLite — priceiq.db</div></div>
+        <div><div class="settings-label">Database</div><div class="settings-desc">Supabase PostgreSQL (Cloud)</div></div>
         <span style="font-weight:700;color:#22c55e">● Aktif</span>
       </div>
       <div class="settings-row">
-        <div><div class="settings-label">Scheduler</div><div class="settings-desc">Auto-scrape setiap 30 menit</div></div>
-        <span style="font-weight:700;color:#22c55e">● Berjalan</span>
+        <div><div class="settings-label">Scheduler</div><div class="settings-desc">Vercel Cron / On-demand</div></div>
+        <span style="font-weight:700;color:#22c55e">● Terkoneksi</span>
       </div>
     </div>
     <div class="settings-section">
       <h3>Manajemen Produk</h3>
       <div class="settings-row">
-        <div><div class="settings-label">Total Produk Dipantau</div><div class="settings-desc">${allProducts.length} produk aktif</div></div>
+        <div><div class="settings-label">Total Produk Dipantau</div><div class="settings-desc">${allProducts.length} produk</div></div>
         <button class="btn-sm btn-primary" id="batchScrapeBtn" onclick="batchScrapeAll()">🔄 Scrape Semua</button>
       </div>
     </div>
