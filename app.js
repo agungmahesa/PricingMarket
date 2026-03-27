@@ -485,7 +485,7 @@ function renderSettingsPage() {
   const el = document.getElementById('settingsFull');
   if (!el) return;
   el.innerHTML = `
-    <div><div class="section-title">Pengaturan</div><div class="section-sub">Konfigurasi sistem PriceIQ</div></div>
+    <div><div class="section-title">Pengaturan</div><div class="section-sub">Konfigurasi sistem Loka Netra</div></div>
     <div class="settings-section">
       <h3>Status Server</h3>
       <div class="settings-row">

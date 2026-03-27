@@ -1,5 +1,5 @@
 {
-  "name": "priceiq-backend",
+  "name": "loka-netra",
   "version": "1.0.0",
   "description": "Marketplace Pricing Intelligence Backend",
   "main": "server/server.js",
