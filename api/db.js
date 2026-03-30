@@ -126,6 +126,7 @@ const insertListings = async (productId, listings) => {
   const payload = listings.map(l => ({
     product_id: productId,
     platform: l.platform,
+    listing_name: l.name || '',
     store_name: l.store_name || '',
     store_url: l.store_url || '',
     price: l.price,
@@ -133,7 +134,8 @@ const insertListings = async (productId, listings) => {
     discount_pct: l.discount_pct || 0,
     rating: l.rating || null,
     sold_count: l.sold_count || 0,
-    badge: l.badge || ''
+    badge: l.badge || '',
+    is_real: l.is_real === true,
   }));
 
   if (payload.length > 0) {

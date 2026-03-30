@@ -306,7 +306,8 @@ async function renderCompetitorPage() {
         return `
               <div class="comp-card">
                 <div class="comp-platform ${l.platform}">${platLabel[l.platform] || l.platform} ${l.is_real ? '<span style="color:#22c55e;font-size:10px;margin-left:5px">● Verified</span>' : '<span style="color:#f59e0b;font-size:10px;margin-left:5px" title="Dipicu karena blokir bot">● Simulated</span>'}</div>
-                <div class="comp-store">${l.store_name || '—'}</div>
+                ${l.listing_name ? `<div class="comp-store" style="font-weight:600;color:#e2e8f0;margin-bottom:2px">${l.listing_name}</div>` : ''}
+                <div class="comp-store" style="${l.listing_name ? 'font-size:11px;opacity:0.7' : ''}">${l.store_name || '—'}</div>
                 <div class="comp-price">${formatRpFull(l.price)}</div>
                 <div class="comp-meta">
                   ${l.rating ? `<span class="comp-badge">⭐ ${Number(l.rating).toFixed(1)}</span>` : ''}

@@ -49,12 +49,19 @@ async function scrapeProduct(product) {
         allListings.push(...listings);
     });
 
-    if (allListings.length > 0) {
-        await insertListings(product.id, allListings);
-        await checkAndCreateAlerts(product.id, allListings, prevMin);
+    // Normalize to ensure listing_name + is_real always present for frontend rendering
+    const normalized = allListings.map(l => ({
+        ...l,
+        listing_name: l.name || l.listing_name || '',
+        scraped_at: new Date().toISOString(),
+    }));
+
+    if (normalized.length > 0) {
+        await insertListings(product.id, normalized);
+        await checkAndCreateAlerts(product.id, normalized, prevMin);
     }
 
-    return allListings;
+    return normalized;
 }
 
 // POST /api/scrape/:id — scrape a single product
