@@ -1,182 +1,140 @@
 /**
  * scrapers/lazada.js
- * Scrapes search results from Lazada using Playwright.
+ * Scrapes search results from Lazada using ScraperAPI (Offloaded Rendering).
  */
-const sparticuz = require('@sparticuz/chromium');
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 const LAZADA_SEARCH = 'https://www.lazada.co.id/catalog/?q=';
 
-async function getBrowser() {
-    const proxyUrl = process.env.PROXY_URL;
-    const launchOptions = {
-        args: ['--disable-blink-features=AutomationControlled'],
-    };
-
-    if (proxyUrl) {
-        launchOptions.proxy = { server: proxyUrl };
-        console.log(`[Proxy] Using residential proxy for Lazada`);
-    }
-
-    if (process.env.VERCEL) {
-        const { chromium: playwright } = require('playwright-core');
-        return await playwright.launch({
-            ...launchOptions,
-            args: [...sparticuz.args, ...launchOptions.args],
-            executablePath: await sparticuz.executablePath(),
-            headless: sparticuz.headless,
-        });
-    } else {
-        const { chromium } = require('playwright');
-        return await chromium.launch({
-            ...launchOptions,
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-http2',
-                ...launchOptions.args
-            ],
-        });
-    }
-}
-
-async function scrapeLazada(keyword, maxResults = 20, basePrice = 50000) {
+async function scrapeLazada(keyword, maxResults = 15, basePrice = 50000) {
     const listings = [];
-    let browser;
+    const proxyUrl = process.env.PROXY_URL; // http://user:pass@host:port
+    
+    // Extract API Key from PROXY_URL if it's a ScraperAPI URL
+    let apiKey = '';
+    if (proxyUrl && proxyUrl.includes('scraperapi')) {
+        const match = proxyUrl.match(/scraperapi:([^@]+)/);
+        if (match) apiKey = match[1];
+    }
 
     try {
-        browser = await getBrowser();
+        const targetUrl = LAZADA_SEARCH + encodeURIComponent(keyword);
+        console.log(`[Lazada] Crawling: ${targetUrl}`);
 
-        const userAgents = [
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        ];
-        const ctx = await browser.newContext({
-            userAgent: userAgents[Math.floor(Math.random() * userAgents.length)],
-            viewport: { width: 1280, height: 800 },
-            locale: 'id-ID',
-        });
+        let html = '';
+        if (apiKey) {
+            // Use ScraperAPI with rendering enabled because Lazada relies heavily on JS
+            const scraperApiUrl = `https://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}&render=true&country_code=id`;
+            console.log(`[Lazada] Using ScraperAPI Render Mode`);
+            const response = await axios.get(scraperApiUrl, { timeout: 60000 });
+            html = response.data;
+        } else {
+            // Fallback to direct axios
+            console.log(`[Lazada] No ScraperAPI key found, using direct request`);
+            const response = await axios.get(targetUrl, { 
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+                timeout: 15000 
+            });
+            html = response.data;
+        }
 
-        const page = await ctx.newPage();
-
-        // Block images to speed up
-        await page.route('**/*', (route) => {
-            const type = route.request().resourceType();
-            if (['image', 'font', 'media'].includes(type)) {
-                route.abort();
-            } else {
-                route.continue();
-            }
-        });
-
-        await page.setExtraHTTPHeaders({ 'Accept-Language': 'id-ID,id;q=0.9' });
-        const url = LAZADA_SEARCH + encodeURIComponent(keyword);
-        console.log(`[Lazada] Fetching: ${url}`);
-
-        await page.goto(url, { waitUntil: 'networkidle', timeout: 35000 });
-
-        // Scroll for lazy load
-        await page.evaluate(() => window.scrollBy(0, 800));
-        await page.waitForTimeout(1000);
-        await page.evaluate(() => window.scrollBy(0, 800));
-        await page.waitForTimeout(1000);
-
-        await page.waitForSelector('[data-qa-locator="product-item"], .bmM-w, .info-content', { timeout: 20000 }).catch(() => { });
-        await page.waitForTimeout(1500);
+        const $ = cheerio.load(html);
+        let extracted = [];
 
         // Try to extract from embedded JSON data (most reliable for Lazada)
-        const extracted = await page.evaluate((max) => {
-            // Lazada embeds product data in __moduleData__
-            const scripts = Array.from(document.querySelectorAll('script'));
-            for (const s of scripts) {
-                if (s.textContent.includes('window.__moduleData__')) {
-                    try {
-                        const match = s.textContent.match(/window\.__moduleData__\s*=\s*(\{.*?\});?\s*(?:window|<\/script>)/s);
-                        if (match) {
-                            const data = JSON.parse(match[1]);
-                            const listingKey = Object.keys(data).find(k => data[k]?.data?.mods?.listItems);
-                            if (listingKey) {
-                                const items = data[listingKey].data.mods.listItems;
-                                return items.slice(0, max).map(item => ({
-                                    name: item.name || '',
-                                    price: Math.round(parseFloat(item.price || 0)),
-                                    original_price: Math.round(parseFloat(item.originalPrice || item.price || 0)),
-                                    discount_pct: item.discount ? parseInt(item.discount) : 0,
-                                    rating: item.ratingScore ? parseFloat(item.ratingScore) : null,
-                                    sold_count: 0,
-                                    store_name: item.sellerName || item.brandName || 'Lazada Seller',
-                                    store_url: item.productUrl ? 'https://www.lazada.co.id' + item.productUrl : '',
-                                    badge: item.isPowerSeller ? 'LazMall' : '',
-                                    is_real: true
-                                }));
-                            }
+        const scripts = $('script').toArray();
+        for (const s of scripts) {
+            const content = $(s).html();
+            if (content && content.includes('window.__moduleData__')) {
+                try {
+                    const match = content.match(/window\.__moduleData__\s*=\s*(\{.*?\});?\s*(?:window|<\/script>)/s);
+                    if (match) {
+                        const data = JSON.parse(match[1]);
+                        const listingKey = Object.keys(data).find(k => data[k]?.data?.mods?.listItems);
+                        if (listingKey) {
+                            const items = data[listingKey].data.mods.listItems;
+                            extracted = items.slice(0, maxResults).map(item => ({
+                                name: item.name || '',
+                                price: Math.round(parseFloat(item.price || 0)),
+                                original_price: Math.round(parseFloat(item.originalPrice || item.price || 0)),
+                                discount_pct: item.discount ? parseInt(item.discount) : 0,
+                                rating: item.ratingScore ? parseFloat(item.ratingScore) : null,
+                                sold_count: 0,
+                                store_name: item.sellerName || item.brandName || 'Lazada Seller',
+                                store_url: item.productUrl ? (item.productUrl.startsWith('http') ? item.productUrl : 'https:' + item.productUrl) : '',
+                                badge: item.isPowerSeller ? 'LazMall' : '',
+                                platform: 'lazada',
+                                is_real: true
+                            }));
                         }
-                    } catch (e) { }
+                    }
+                } catch (e) {
+                    // JSON parse error, ignore
                 }
             }
+        }
 
-            // Fallback: DOM parsing
-            const cards = document.querySelectorAll('[data-qa-locator="product-item"], .bmM-w, .info-content');
-            const results = [];
-            for (let i = 0; i < Math.min(cards.length, max); i++) {
-                const card = cards[i];
+        // Fallback: DOM parsing if __moduleData__ wasn't found (e.g., structure changed)
+        if (extracted.length === 0) {
+            console.log(`[Lazada] Falling back to DOM parsing via Cheerio`);
+            const cards = $('[data-qa-locator="product-item"], .bmM-w, .info-content').toArray();
+            
+            for (let i = 0; i < Math.min(cards.length, maxResults); i++) {
+                const card = $(cards[i]);
                 try {
-                    const nameEl = card.querySelector('[class*="title"], [data-qa-locator="product-item"] a, .RfS5p');
-                    const name = nameEl ? nameEl.textContent.trim() : '';
+                    const nameEl = card.find('[class*="title"], [data-qa-locator="product-item"] a, .RfS5p');
+                    const name = nameEl.text().trim();
 
-                    const priceEl = card.querySelector('[class*="price"] span, .price-sale, .ooOxS');
-                    const priceMatch = priceEl ? priceEl.textContent.match(/Rp\s*([\d.]+)/) : null;
-                    const price = priceMatch ? parseInt(priceMatch[1].replace(/\./g, '')) : 0;
+                    const priceEl = card.find('[class*="price"] span, .price-sale, .ooOxS');
+                    const pt = priceEl.text().replace(/[^0-9]/g, '');
+                    const price = parseInt(pt) || 0;
 
-                    const origEl = card.querySelector('[class*="original"], .price-original, ._17m_b');
-                    const origMatch = origEl ? origEl.textContent.match(/Rp\s*([\d.]+)/) : null;
-                    const original_price = origMatch ? parseInt(origMatch[1].replace(/\./g, '')) : price;
+                    const origEl = card.find('[class*="original"], .price-original, ._17m_b');
+                    const opt = origEl.text().replace(/[^0-9]/g, '');
+                    const original_price = parseInt(opt) || price;
 
-                    const ratingEl = card.querySelector('[class*="rating"], .rate-value');
-                    const rating = ratingEl ? parseFloat(ratingEl.textContent) || null : null;
+                    const ratingEl = card.find('[class*="rating"], .rate-value');
+                    const rating = parseFloat(ratingEl.text()) || null;
 
-                    const storeEl = card.querySelector('[class*="seller"], [class*="shop"], .PrNBy');
-                    const store_name = storeEl ? storeEl.textContent.trim() : 'Lazada Seller';
+                    const storeEl = card.find('[class*="seller"], [class*="shop"], .PrNBy');
+                    const store_name = storeEl.text().trim() || 'Lazada Seller';
 
-                    const linkEl = card.querySelector('a');
-                    const store_url = linkEl ? linkEl.href : '';
+                    let store_url = card.find('a').attr('href') || '';
+                    if (store_url && !store_url.startsWith('http')) store_url = 'https:' + store_url;
 
-                    const badgeEl = card.querySelector('[class*="lazmall"], [class*="official"], ._2Srvq');
-                    const badge = badgeEl ? 'LazMall' : '';
+                    const badgeEl = card.find('[class*="lazmall"], [class*="official"], ._2Srvq');
+                    const badge = badgeEl.length > 0 ? 'LazMall' : '';
 
-                    if (price > 0 && name.length > 2) results.push({ name, price, original_price, discount_pct: 0, rating, sold_count: 0, store_name, badge, store_url, is_real: true });
+                    if (price > 1000 && name.length > 2) {
+                        extracted.push({ 
+                            name, price, original_price, discount_pct: 0, rating, sold_count: 0, 
+                            store_name, badge, store_url, platform: 'lazada', is_real: true 
+                        });
+                    }
                 } catch (e) { }
             }
-            return results;
-        }, maxResults);
+        }
 
         for (const item of extracted) {
-            if (item.price > 0) listings.push({ ...item, platform: 'lazada' });
-        }
-        // Fallback for cloud IPs
-        if (listings.length === 0) {
-            console.log('[Lazada] Using dynamic fallback data (Blocked by anti-bot on datacenter IP)');
-            const bp = basePrice > 0 ? basePrice : 50000;
-            const searchUrl = 'https://www.lazada.co.id/catalog/?q=' + encodeURIComponent(keyword);
-            listings.push(
-                { name: `${keyword} Bonus Ekstra`, platform: 'lazada', price: Math.round(bp * 0.99), original_price: Math.round(bp * 1.05), discount_pct: 3, rating: 4.8, sold_count: 0, store_name: 'Lazada Authorized', badge: 'LazMall', store_url: searchUrl, is_real: false },
-                { name: keyword, platform: 'lazada', price: Math.round(bp * 1.01), original_price: Math.round(bp * 1.01), discount_pct: 0, rating: 5.0, sold_count: 0, store_name: 'Flagship Store', badge: 'LazMall', store_url: searchUrl, is_real: false }
-            );
+            if (item.price > 0) listings.push(item);
         }
 
-        console.log(`[Lazada] Found ${listings.length} listings for "${keyword}"`);
+        console.log(`[Lazada] Found ${listings.length} real listings for "${keyword}"`);
+
     } catch (err) {
-        console.error(`[Lazada] Error: ${err.message}`);
-        // Fallback on error too
-        console.log(`[Lazada] Using fallback data on error`);
+        console.error(`[Lazada] Crawl Error: ${err.message}`);
+    }
+
+    // Fallback for cloud IPs (if blocked or ScraperAPI fails)
+    if (listings.length === 0) {
+        console.log('[Lazada] Using dynamic fallback data');
         const bp = basePrice > 0 ? basePrice : 50000;
+        const searchUrl = 'https://www.lazada.co.id/catalog/?q=' + encodeURIComponent(keyword);
         listings.push(
-            { name: keyword, platform: 'lazada', price: Math.round(bp * 0.97), original_price: Math.round(bp * 0.97), discount_pct: 0, rating: 4.7, sold_count: 0, store_name: 'Lazada Authorized', badge: 'LazMall', store_url: 'https://www.lazada.co.id/catalog/?q=' + encodeURIComponent(keyword) }
+            { name: `${keyword} Bonus Ekstra`, platform: 'lazada', price: Math.round(bp * 0.99), original_price: Math.round(bp * 1.05), discount_pct: 3, rating: 4.8, sold_count: 0, store_name: 'Lazada Authorized', badge: 'LazMall', store_url: searchUrl, is_real: false },
+            { name: keyword, platform: 'lazada', price: Math.round(bp * 1.01), original_price: Math.round(bp * 1.01), discount_pct: 0, rating: 5.0, sold_count: 0, store_name: 'Flagship Store', badge: 'LazMall', store_url: searchUrl, is_real: false }
         );
-    } finally {
-        if (browser) await browser.close();
     }
 
     return listings;
