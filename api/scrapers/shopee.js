@@ -71,16 +71,6 @@ async function scrapeShopee(keyword, maxResults = 15, basePrice = 50000) {
         console.error(`[Shopee] Crawl error: ${err.message}`);
     }
 
-    if (listings.length === 0) {
-        console.log(`[Shopee] Using fallback data`);
-        const bp = basePrice > 0 ? basePrice : 50000;
-        const searchUrl = 'https://shopee.co.id/search?keyword=' + encodeURIComponent(keyword);
-        listings.push(
-            { name: `${keyword} - Garansi Resmi`, platform: 'shopee', price: Math.round(bp * 0.96), original_price: Math.round(bp * 1.05), discount_pct: 8, rating: 4.8, sold_count: 240, store_name: 'Official Store', badge: 'Star Seller', store_url: searchUrl, is_real: false },
-            { name: keyword, platform: 'shopee', price: Math.round(bp), original_price: Math.round(bp), discount_pct: 0, rating: 4.9, sold_count: 890, store_name: 'Store Resmi Toko', badge: 'Shopee Mall', store_url: searchUrl, is_real: false }
-        );
-    }
-
     return listings;
 }
 

@@ -144,17 +144,6 @@ async function scrapeTokopedia(keyword, maxResults = 15, basePrice = 50000) {
         }
     }
 
-    if (listings.length === 0) {
-        console.log(`[Tokopedia] Using fallback data`);
-        const bp = basePrice > 0 ? basePrice : 50000;
-        const searchUrl = 'https://www.tokopedia.com/search?q=' + encodeURIComponent(keyword);
-        listings.push(
-            { name: `${keyword} Promo Flash Sale`, platform: 'tokopedia', price: Math.round(bp * 0.95), original_price: bp, discount_pct: 5, rating: 4.8, sold_count: 120, store_name: 'Toko Elektronik ID', badge: '', store_url: searchUrl, is_real: false },
-            { name: `${keyword} Original`, platform: 'tokopedia', price: Math.round(bp * 0.98), original_price: Math.round(bp * 0.98), discount_pct: 0, rating: 4.9, sold_count: 550, store_name: 'Official Store ID', badge: 'Official Store', store_url: searchUrl, is_real: false },
-            { name: `${keyword} BNIB`, platform: 'tokopedia', price: Math.round(bp * 0.92), original_price: Math.round(bp * 0.92), discount_pct: 0, rating: 4.7, sold_count: 45, store_name: 'Gadget Mart Murah', badge: '', store_url: searchUrl, is_real: false }
-        );
-    }
-
     return listings;
 }
 
