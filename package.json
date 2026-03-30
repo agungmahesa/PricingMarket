@@ -4,8 +4,8 @@
   "description": "Marketplace Pricing Intelligence Backend",
   "main": "server/server.js",
   "scripts": {
-    "start": "node server/server.js",
-    "dev": "node --watch server/server.js"
+    "start": "node api/index.js",
+    "dev": "node --watch api/index.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.7",

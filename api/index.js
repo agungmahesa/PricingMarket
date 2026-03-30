@@ -3,6 +3,7 @@
  */
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -10,6 +11,17 @@ const PORT = process.env.PORT || 3001;
 // ── Middleware ────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
+
+// ── Serve static files locally (index.html, app.js, style.css) ──────────────
+// On Vercel, static files are served natively via vercel.json routes.
+// Locally, express needs to serve them from the project root.
+if (!process.env.VERCEL) {
+    const staticRoot = path.join(__dirname, '..');
+    app.use(express.static(staticRoot));
+    app.get('/', (req, res) => {
+        res.sendFile(path.join(staticRoot, 'index.html'));
+    });
+}
 
 // ── Routes ────────────────────────────────────────────────
 const productsRouter = require('./routes/products');
