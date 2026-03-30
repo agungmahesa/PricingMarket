@@ -1,127 +1,151 @@
 /**
  * scrapers/tokopedia.js
- * Scrapes search results from Tokopedia using ScraperAPI (Offloaded Rendering).
- * Returns array of product listings for a given keyword.
+ * Crawls Tokopedia search results via direct HTTP request (axios + cheerio).
+ * Uses GraphQL API — more stable than HTML scraping for Tokopedia.
  */
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-const TOKOPEDIA_SEARCH = 'https://www.tokopedia.com/search?st=product&q=';
+const BROWSER_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+    'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Content-Type': 'application/json',
+    'Origin': 'https://www.tokopedia.com',
+    'Referer': 'https://www.tokopedia.com/',
+    'sec-ch-ua': '"Google Chrome";v="123", "Not:A-Brand";v="8"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-site',
+    'Connection': 'keep-alive',
+    'X-TKPD-AKAMAI': 'pdp_desktop',
+};
+
+const GQL_SEARCH_QUERY = `
+query SearchProductQueryV4($params: String!) {
+  ace_search_product_v4(params: $params) {
+    data {
+      products {
+        id
+        name
+        url
+        imageUrl
+        price
+        originalPrice
+        discountPercentage
+        ratingAverage
+        countReview
+        labelGroups {
+          title
+          type
+        }
+        shop {
+          name
+          url
+        }
+      }
+    }
+  }
+}`;
 
 async function scrapeTokopedia(keyword, maxResults = 15, basePrice = 50000) {
     const listings = [];
-    const proxyUrl = process.env.PROXY_URL; // http://user:pass@host:port
-    
-    // Extract API Key from PROXY_URL if it's a ScraperAPI URL
-    // Format: http://scraperapi:APIKEY@proxy-server.scraperapi.com:8001
-    let apiKey = '';
-    if (proxyUrl && proxyUrl.includes('scraperapi')) {
-        const match = proxyUrl.match(/scraperapi:([^@]+)/);
-        if (match) apiKey = match[1];
-    }
 
     try {
-        const targetUrl = TOKOPEDIA_SEARCH + encodeURIComponent(keyword);
-        console.log(`[Tokopedia] Crawling: ${targetUrl}`);
+        // Strategy 1: Tokopedia GraphQL API
+        const gqlParams = `rows=24&start=0&q=${encodeURIComponent(keyword)}&source=search&page=1&ob=23&safe_search=false`;
+        console.log(`[Tokopedia] Crawling via GQL API`);
 
-        let html = '';
-        if (apiKey) {
-            // Use ScraperAPI with rendering enabled to bypass bot detection & JS rendering
-            const scraperApiUrl = `https://api.scraperapi.com?api_key=${apiKey}&url=${encodeURIComponent(targetUrl)}&render=true&country_code=id`;
-            console.log(`[Tokopedia] Using ScraperAPI Render Mode`);
-            const response = await axios.get(scraperApiUrl, { timeout: 60000 });
-            html = response.data;
-        } else {
-            // Fallback to direct axios (likely for local testing or if no proxy set)
-            console.log(`[Tokopedia] No ScraperAPI key found, using direct request`);
-            const response = await axios.get(targetUrl, { 
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
-                timeout: 10000 
-            });
-            html = response.data;
-        }
+        const gqlResponse = await axios.post(
+            'https://gql.tokopedia.com/graphql/SearchProductQueryV4',
+            JSON.stringify([{
+                operationName: 'SearchProductQueryV4',
+                variables: { params: gqlParams },
+                query: GQL_SEARCH_QUERY,
+            }]),
+            { headers: BROWSER_HEADERS, timeout: 15000 }
+        );
 
-        const $ = cheerio.load(html);
-        
-        // Find all potential product cards using the same resilient selectors as before
-        const cardSelectors = [
-            '[data-testid="master-product-card"]',
-            '.css-1asz3by',
-            '.pcv3__container',
-            '[data-testid="divSRPContentProducts"] > div',
-            '.css-1mbt72s',
-            '.css-jza8fo'
-        ];
+        const gqlData = gqlResponse.data;
+        const products = gqlData?.[0]?.data?.ace_search_product_v4?.data?.products || [];
 
-        let cards = [];
-        for (const sel of cardSelectors) {
-            const found = $(sel);
-            if (found.length >= 3) { 
-                cards = found.toArray(); 
-                break; 
+        for (const p of products.slice(0, maxResults)) {
+            const priceNum = parseInt((p.price || '').replace(/[^0-9]/g, '')) || 0;
+            const originalNum = parseInt((p.originalPrice || '').replace(/[^0-9]/g, '')) || priceNum;
+            if (priceNum > 1000 && (p.name || '').length > 3) {
+                const badge = (p.labelGroups || []).find(l => l.type === 'gimmick')?.title || '';
+                listings.push({
+                    name: p.name,
+                    price: priceNum,
+                    original_price: originalNum,
+                    discount_pct: p.discountPercentage || 0,
+                    rating: parseFloat(p.ratingAverage) || null,
+                    sold_count: 0,
+                    store_name: p.shop?.name || 'Tokopedia Seller',
+                    badge,
+                    store_url: p.url || `https://www.tokopedia.com/search?q=${encodeURIComponent(keyword)}`,
+                    platform: 'tokopedia',
+                    is_real: true,
+                });
             }
         }
 
-        if (cards.length === 0) {
-            // Last resort: find anything that looks like a product card
-            cards = $('div').filter((i, el) => {
-                const text = $(el).text();
-                return text.includes('Rp') && $(el).find('a').length > 0;
-            }).toArray().slice(0, 15);
-        }
+        console.log(`[Tokopedia] GQL found ${listings.length} listings for "${keyword}"`);
 
-        for (let i = 0; i < Math.min(cards.length, maxResults); i++) {
-            const card = $(cards[i]);
-            try {
-                // Product name
-                const nameEl = card.find('[data-testid="spnSRPProdName"], .css-1b6t4dn, .prd_link-product-name, [class*="title"]');
-                const name = nameEl.text().trim();
+    } catch (gqlErr) {
+        console.error(`[Tokopedia] GQL error: ${gqlErr.message}`);
 
-                // Price
-                const priceEl = card.find('[data-testid="spnSRPProdPrice"], .css-1ksbe7z, .prd_link-product-price, [class*="price"]');
-                const pt = priceEl.text().replace(/[^0-9]/g, '');
+        // Strategy 2: Fallback — direct HTML crawl
+        try {
+            console.log(`[Tokopedia] Falling back to HTML crawl`);
+            const htmlUrl = `https://www.tokopedia.com/search?st=product&q=${encodeURIComponent(keyword)}`;
+            const { data: html } = await axios.get(htmlUrl, {
+                headers: {
+                    ...BROWSER_HEADERS,
+                    'Accept': 'text/html,application/xhtml+xml,application/xml',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                },
+                timeout: 15000,
+            });
+
+            const $ = cheerio.load(html);
+            const cardSelectors = [
+                '[data-testid="master-product-card"]',
+                '.css-1asz3by',
+                '.pcv3__container',
+            ];
+
+            let cards = [];
+            for (const sel of cardSelectors) {
+                const found = $(sel);
+                if (found.length >= 3) { cards = found.toArray(); break; }
+            }
+
+            for (let i = 0; i < Math.min(cards.length, maxResults); i++) {
+                const card = $(cards[i]);
+                const name = card.find('[data-testid="spnSRPProdName"], [class*="title"]').text().trim();
+                const pt = card.find('[data-testid="spnSRPProdPrice"], [class*="price"]').text().replace(/[^0-9]/g, '');
                 const price = parseInt(pt) || 0;
-
-                // Store
-                const storeEl = card.find('[data-testid="spnSRPProdTabName"], .css-1rn65ee, .prd_link-shop-name, [class*="shop"]');
-                const store_name = storeEl.text().trim() || 'Tokopedia Seller';
-
-                // Badge
-                const badgeEl = card.find('[data-testid="spnSRPProdLabel"], [class*="badge"], img[src*="official"]');
-                const badge = badgeEl.length > 0 ? 'Official Store' : '';
-
-                // URL
-                const linkEl = card.find('a');
-                const store_url = linkEl.attr('href') || '';
-                const final_url = store_url.startsWith('http') ? store_url : 'https://www.tokopedia.com' + store_url;
-
+                const store_name = card.find('[data-testid="spnSRPProdTabName"], [class*="shop"]').text().trim() || 'Tokopedia Seller';
+                let store_url = card.find('a').attr('href') || '';
+                if (store_url && !store_url.startsWith('http')) store_url = 'https://www.tokopedia.com' + store_url;
                 if (price > 1000 && name.length > 3) {
-                    listings.push({ 
-                        name, 
-                        price, 
-                        original_price: price, 
-                        discount_pct: 0, 
-                        rating: 4.8, 
-                        sold_count: 0, 
-                        store_name, 
-                        badge, 
-                        store_url: final_url, 
-                        platform: 'tokopedia',
-                        is_real: true 
-                    });
+                    listings.push({ name, price, original_price: price, discount_pct: 0, rating: null, sold_count: 0, store_name, badge: '', store_url, platform: 'tokopedia', is_real: true });
                 }
-            } catch (e) { }
+            }
+            console.log(`[Tokopedia] HTML crawl found ${listings.length} listings`);
+        } catch (htmlErr) {
+            console.error(`[Tokopedia] HTML crawl error: ${htmlErr.message}`);
         }
-
-        console.log(`[Tokopedia] Found ${listings.length} real listings for "${keyword}"`);
-
-    } catch (err) {
-        console.error(`[Tokopedia] Crawl Error: ${err.message}`);
     }
 
-    // Fallback: If no real findings, use the same high-fidelity simulated data
     if (listings.length === 0) {
-        console.log(`[Tokopedia] Using dynamic fallback data`);
+        console.log(`[Tokopedia] Using fallback data`);
         const bp = basePrice > 0 ? basePrice : 50000;
         const searchUrl = 'https://www.tokopedia.com/search?q=' + encodeURIComponent(keyword);
         listings.push(
@@ -133,8 +157,5 @@ async function scrapeTokopedia(keyword, maxResults = 15, basePrice = 50000) {
 
     return listings;
 }
-
-module.exports = { scrapeTokopedia };
-
 
 module.exports = { scrapeTokopedia };

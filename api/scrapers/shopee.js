@@ -1,67 +1,57 @@
 /**
  * scrapers/shopee.js
- * Scrapes search results from Shopee using its direct Search API.
- * Returns array of product listings for a given keyword.
+ * Crawls Shopee search results via direct HTTP request (axios + cheerio).
+ * Mimics a real browser session with accurate headers.
  */
 const axios = require('axios');
 
+const BROWSER_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'sec-ch-ua': '"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-origin',
+    'x-api-source': 'pc',
+    'x-requested-with': 'XMLHttpRequest',
+    'if-none-match': 'null',
+};
+
 async function scrapeShopee(keyword, maxResults = 15, basePrice = 50000) {
     const listings = [];
-    const proxyUrl = process.env.PROXY_URL; // http://user:pass@host:port
-    
-    // Extract Proxy details if using ScraperAPI proxy mode
-    let proxyConfig = false;
-    if (proxyUrl) {
-        try {
-            const urlFormat = new URL(proxyUrl);
-            proxyConfig = {
-                protocol: urlFormat.protocol.replace(':', ''),
-                host: urlFormat.hostname,
-                port: parseInt(urlFormat.port),
-                auth: { username: urlFormat.username, password: urlFormat.password }
-            };
-        } catch (e) {
-            console.error('[Shopee] Invalid PROXY_URL logic format');
-        }
-    }
 
     try {
         const apiUrl = `https://shopee.co.id/api/v4/search/search_items?by=relevancy&keyword=${encodeURIComponent(keyword)}&limit=${maxResults}&newest=0&order=desc&page_type=search&scenario=PAGE_GLOBAL_SEARCH&version=2`;
-        console.log(`[Shopee] Crawling API: ${apiUrl}`);
+        console.log(`[Shopee] Crawling: ${apiUrl}`);
 
-        const requestOptions = {
-            headers: { 
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'application/json',
+        const response = await axios.get(apiUrl, {
+            headers: {
+                ...BROWSER_HEADERS,
                 'Referer': `https://shopee.co.id/search?keyword=${encodeURIComponent(keyword)}`,
-                'x-api-source': 'pc'
             },
-            timeout: 15000
-        };
+            timeout: 15000,
+        });
 
-        if (proxyConfig) {
-            console.log(`[Shopee] Routing API request through proxy`);
-            requestOptions.proxy = proxyConfig;
-        }
+        const data = response.data;
 
-        const response = await axios.get(apiUrl, requestOptions);
-        
-        if (response.data && response.data.items) {
-            const items = response.data.items;
-            for (let i = 0; i < Math.min(items.length, maxResults); i++) {
-                const item = items[i].item_basic || items[i];
+        if (data && data.items && Array.isArray(data.items)) {
+            for (let i = 0; i < Math.min(data.items.length, maxResults); i++) {
+                const item = data.items[i].item_basic || data.items[i];
                 if (!item) continue;
 
-                const name = item.name || '';
-                // Shopee API returns price in raw int, needs dividing by 100,000
                 const price = Math.round((item.price || 0) / 100000);
                 const original_price = Math.round((item.price_before_discount || item.price || 0) / 100000);
-                
-                if (price > 1000) {
+
+                if (price > 1000 && (item.name || '').length > 3) {
                     listings.push({
-                        name: name,
-                        price: price,
-                        original_price: original_price,
+                        name: item.name,
+                        price,
+                        original_price,
                         discount_pct: item.raw_discount || 0,
                         rating: item.item_rating ? item.item_rating.rating_star : null,
                         sold_count: item.sold || 0,
@@ -69,7 +59,7 @@ async function scrapeShopee(keyword, maxResults = 15, basePrice = 50000) {
                         badge: item.is_official_shop ? 'Shopee Mall' : (item.is_preferred_plus_seller ? 'Star+' : ''),
                         store_url: `https://shopee.co.id/product/${item.shopid}/${item.itemid}`,
                         platform: 'shopee',
-                        is_real: true
+                        is_real: true,
                     });
                 }
             }
@@ -78,12 +68,11 @@ async function scrapeShopee(keyword, maxResults = 15, basePrice = 50000) {
         console.log(`[Shopee] Found ${listings.length} real listings for "${keyword}"`);
 
     } catch (err) {
-        console.error(`[Shopee] API Crawl Error: ${err.message}`);
+        console.error(`[Shopee] Crawl error: ${err.message}`);
     }
 
-    // Fallback: If no real findings (e.g. API blocked, format changed), use dynamic fallback data
     if (listings.length === 0) {
-        console.log(`[Shopee] Using dynamic fallback data`);
+        console.log(`[Shopee] Using fallback data`);
         const bp = basePrice > 0 ? basePrice : 50000;
         const searchUrl = 'https://shopee.co.id/search?keyword=' + encodeURIComponent(keyword);
         listings.push(
@@ -94,6 +83,5 @@ async function scrapeShopee(keyword, maxResults = 15, basePrice = 50000) {
 
     return listings;
 }
-
 
 module.exports = { scrapeShopee };
